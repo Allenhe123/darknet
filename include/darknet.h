@@ -5,6 +5,8 @@
 #include <string.h>
 #include <pthread.h>
 
+#define OPENCV 1
+
 #ifdef GPU
     #define BLOCK 512
 
