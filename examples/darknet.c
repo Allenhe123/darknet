@@ -430,10 +430,13 @@ int main(int argc, char **argv)
     } else if (0 == strcmp(argv[1], "detector")){
         run_detector(argc, argv);
     } else if (0 == strcmp(argv[1], "detect")){
+        // ./darknet detect cfg/yolov3.fg yolov3.weights data/horses.jpg
         float thresh = find_float_arg(argc, argv, "-thresh", .5);
         char *filename = (argc > 4) ? argv[4]: 0;
         char *outfile = find_char_arg(argc, argv, "-out", 0);
         int fullscreen = find_arg(argc, argv, "-fullscreen");
+        printf("thresh: %f, filename: %s, outfile: %s, fullscreen: %d", thresh, filename, outfile, fullscreen);
+
         test_detector("cfg/coco.data", argv[2], argv[3], filename, thresh, .5, outfile, fullscreen);
     } else if (0 == strcmp(argv[1], "cifar")){
         run_cifar(argc, argv);

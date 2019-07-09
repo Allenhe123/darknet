@@ -8,6 +8,7 @@
 #include <math.h>
 #include "box.h"
 #include "darknet.h"
+#include "opencv2/opencv.hpp"
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,6 +19,7 @@ void *open_video_stream(const char *f, int c, int w, int h, int fps);
 image get_image_from_stream(void *p);
 image load_image_cv(char *filename, int channels);
 int show_image_cv(image im, const char* name, int ms);
+image mat_to_image(Mat m);
 #endif
 
 float get_color(int c, int x, int max);

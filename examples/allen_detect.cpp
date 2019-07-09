@@ -1,9 +1,11 @@
 #include "../include/darknet.h"
+#include "../src/image.h"
 
 #include <iostream>
 #include <string>
 #include <fstream>
 #include <memory>
+#include <string>
 #include<opencv2/opencv.hpp>
 
 
@@ -113,30 +115,60 @@ void imgResize(float *src, float* dst,int srcWidth,int srcHeight,int dstWidth,in
     }
     free(ImgReInner);
 }
- 
-float colors[6][3] = { {1,0,1}, {0,0,1},{0,1,1},{0,1,0},{1,1,0},{1,0,0} };
-float get_color(int c, int x, int max)
-{
-    float ratio = ((float)x/max) * 5;
-    int i = floor(ratio);
-    int j = ceil(ratio);
-    ratio -= i;
-    float r = (1 - ratio) * colors[i][c] + ratio * colors[j][c];
-    return r;
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void allen_detector()
+void allen_detect_image(const std::string filename)
+{
+    float thresh = 0.5;
+    float nms = 0.45;
+
+    list *options = read_data_cfg("/home/allen/myproject/darknet/cfg/yolov3.cfg");
+    char *name_list = option_find_str(options, "names", "data/names.list");
+    char **names = get_labels(name_list);
+
+    image **alphabet = load_alphabet();
+    network* net = load_network("/home/allen/myproject/darknet/cfg/yolov3.cfg", "/home/allen/myproject/darknet/yolov3.weights", 0);
+    set_batch_network(net, 1);
+
+    std::vector<std::string> classNamesVec;
+    std::ifstream classNamesFile("/home/allen/myproject/darknet/data/coco.names");  //标签文件coco有80类
+    if (classNamesFile.is_open())
+    {
+        std::string className = "";
+        while (getline(classNamesFile, className))
+            classNamesVec.push_back(className);
+    }
+
+    image img = load_image_cv(const_cast<char*>(filename.c_str()), 0);
+
+    // scale the image by yolov3.cfg
+    image sized = letterbox_image(img, net->w, net->h);
+
+    network_predict(net, sized.data);
+    
+    int nboxes = 0;
+    detection* dets = get_network_boxes(net, img.w, img.h, thresh, 0.5, 0, 1, &nboxes);
+    layer l = net->layers[net->n-1];
+    if(nms)  do_nms_sort(dets, nboxes, l.classes, nms);
+
+    draw_detections(img, dets, nboxes, thresh, names, alphabet, l.classes);
+
+    free_image(img);
+    free_image(sized);
+    free_network(net);
+}
+
+void allen_detect_video(const std::string filename)
 {
     std::string cfgfile = "/home/allen/myproject/darknet/cfg/yolov3.cfg";        // 读取模型文件，请自行修改相应路径
     std::string weightfile = "/home/allen/myproject/darknet/yolov3.weights";
     float thresh = 0.5;                                                          //参数设置
-    float nms = 0.35;
-    int classes = 80;
+    float nms = 0.45;
 
     network* net = load_network((char*)cfgfile.c_str(), (char*)weightfile.c_str(), 0);
     set_batch_network(net, 1);
+
     cv::VideoCapture capture("/home/allen/myproject/dms/BlinkDetect/14-MaleNoGlasses.avi");
     cv::Mat frame;
     cv::Mat rgbImg;
@@ -149,25 +181,22 @@ void allen_detector()
         while (getline(classNamesFile, className))
             classNamesVec.push_back(className);
     }
- 
+
+    srand(2222222);
+
     while(capture.read(frame))
     {
-        cv::cvtColor(frame, rgbImg, cv::COLOR_BGR2RGB);
-        size_t srcSize = rgbImg.rows * rgbImg.cols * 3 * sizeof(float);
-        float* srcImg = new float[rgbImg.rows * rgbImg.cols * 3];
-        imgConvert(rgbImg, srcImg);                                         //将图像转为yolo形式
+        image srcImage = mat_to_image(frame);
+        // scale the image by yolov3.cfg
+        image sized = letterbox_image(srcImage, net->w, net->h);
  
-        float* resizeImg =  new float[net->w * net->h * 3 ];
-        imgResize(srcImg, resizeImg, frame.cols, frame.rows, net->w, net->h);    //缩放图像
- 
-        network_predict(net, resizeImg);                                     //网络推理
+        network_predict(net, sized.data);
         
         int nboxes = 0;
         detection* dets = get_network_boxes(net, rgbImg.cols, rgbImg.rows, thresh, 0.5, 0, 1, &nboxes);
-        if(nms)
-        {
-            do_nms_sort(dets, nboxes, classes, nms);
-        }
+        layer l = net->layers[net->n-1];
+        if(nms)  do_nms_sort(dets, nboxes, l.classes, nms);
+        
  
         std::vector<cv::Rect>boxes;
         std::vector<int>classNames;
@@ -175,7 +204,7 @@ void allen_detector()
         {
             bool flag = 0;
             int className;
-            for(int j=0; j<classes; j++)
+            for(int j=0; j<l.classes; j++)
             {
                 if(dets[i].prob[j] > thresh)
                 {
@@ -207,10 +236,10 @@ void allen_detector()
  
         for(int i=0; i<boxes.size(); i++)
         {
-            int offset = classNames[i] * 123457 % 80;
-            float red = 255 * get_color(2, offset, 80);
-            float green = 255 * get_color(1, offset, 80);
-            float blue = 255 * get_color(0, offset, 80);
+            int offset = classNames[i] * 123457 % l.classes;
+            float red = 255 * get_color(2, offset, l.classes);
+            float green = 255 * get_color(1, offset, l.classes);
+            float blue = 255 * get_color(0, offset, l.classes);
  
             cv::rectangle(frame, boxes[i], cv::Scalar(blue, green, red), 2);
  
@@ -222,15 +251,22 @@ void allen_detector()
         }
         imshow("video",frame);
   
-        delete []srcImg;
-        delete []resizeImg;
+        free_image(srcImage);
+        free_image(sized);
     }
     free_network(net);
     capture.release();
 }
-//////////////////////////////////////////////////////////////////////////////
 
-int main()
+void allen_detector(int img_or_video, const std::string filename)
+{
+    if (img_or_video == 0) allen_detect_image(filename);
+    else if (img_or_video == 1) allen_detect_video(filename);
+    else std::cout << "invalid arg" << std::endl;
+}
+//////////////////////////////////////////////////////////////////////////////
+// ./allen_detect 0 filepath
+int main(int argc, char**argv)
 {
 #ifdef OPENCV
     std::cout << "use opencv..." << std::endl;
@@ -239,7 +275,12 @@ int main()
 #endif
     std::cout << "hello darknet" << std::endl;
 
-    allen_detector();
-
+    int img_video = 0; // 0 - image, 1 - video
+    if (argc >= 3)  
+    {
+        img_video = std::atoi(argv[1]);
+        allen_detector(img_video, argv[2]);
+    }
+    else std::cout << "invalid number of parameters" << std::endl;
     return 0;
 }
