@@ -2,6 +2,8 @@
 
 set -e 
 
+DEBUG=1
+
 # Absolute path to this script, e.g. /home/user/bin/foo.sh
 SCRIPT=$(readlink -f "$0")
 # Absolute path this script is in, thus /home/user/bin
@@ -24,7 +26,16 @@ else
 	sudo ln -s $SCRIPTPATH/libdarknet.so /usr/lib/libdarknet.so
 fi
 
-g++ examples/allen_detect.cpp -std=c++11 -DOPENCV -Iinclude/ -Isrc/ -L/usr/lib/x86_64-linux-gnu/ -lopencv_core -lopencv_highgui -lopencv_imgproc -ldarknet -o allen_detect
+# LDFLAGS= `pkg-config --libs opencv`
+# CFLAGS= `pkg-config --cflags opencv`
+
+g++ examples/allen_detect.cpp -Wall -std=c++11 -DOPENCV -Iinclude/ -Isrc/ -L/usr/lib/x86_64-linux-gnu/ -lopencv_core -lopencv_highgui -lopencv_imgproc -ldarknet -o allen_detect
+
+# if [ $DEBUG -eq 1 ]; then
+# 	sudo g++ examples/allen_detect.cpp -Wall -std=c++11 -O0 -g -DOPENCV $(CFLAGS) $(LDFLAGS) -o allen_detect
+# else
+# 	g++ examples/allen_detect.cpp -Wall -std=c++11 -Ofast -DOPENCV $(CFLAGS) $(LDFLAGS) -o allen_detect
+# fi
 
 if [ ! -f yolov3.weights ]; then
 	echo "yolov3.weights is not exist, downloading it ..."
