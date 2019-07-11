@@ -24,11 +24,12 @@ else
 	sudo ln -s $SCRIPTPATH/libdarknet.so /usr/lib/libdarknet.so
 fi
 
-g++ examples/allen_detect.cpp -Iinclude/ -Isrc/ -L/usr/lib/x86_64-linux-gnu/ -lopencv_core -lopencv_highgui -lopencv_imgproc -ldarknet -o allen_detect
+g++ examples/allen_detect.cpp -std=c++11 -DOPENCV -Iinclude/ -Isrc/ -L/usr/lib/x86_64-linux-gnu/ -lopencv_core -lopencv_highgui -lopencv_imgproc -ldarknet -o allen_detect
 
 if [ ! -f yolov3.weights ]; then
 	echo "yolov3.weights is not exist, downloading it ..."
 	wget https://pjreddie.com/media/files/yolov3.weights
+	# wget https://pjreddie.com/media/files/yolov3-tiny.weights
 fi
 
 set +e

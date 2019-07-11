@@ -236,6 +236,7 @@ image **load_alphabet()
     return alphabets;
 }
 
+// num - 检测到的box的数目
 void draw_detections(image im, detection *dets, int num, float thresh, char **names, image **alphabet, int classes)
 {
     int i,j;
